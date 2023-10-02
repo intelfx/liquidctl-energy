@@ -30,6 +30,8 @@ struct Result
 {
 	fp_seconds total_time;
 	double total_energy_j;
+	unsigned rollovers;
+	bool bad;
 };
 
 double parse_item(sj::object obj, std::string_view unit)
@@ -61,6 +63,62 @@ ts_time parse_timestamp(std::string_view s)
 void process_step(Result &r, const Measurement &prev, const Measurement &last)
 {
 	fp_seconds delta_wall{last.stamp - prev.stamp};
+	fp_seconds delta_uptime_tot{last.uptime_tot - prev.uptime_tot};
+	fp_seconds delta_uptime_cur{last.uptime_cur - prev.uptime_cur};
+	fp_seconds uptime{last.uptime_cur};
+
+	bool delta_uptime_bad = (
+		delta_uptime_tot.count() < uptime.count()
+	);
+
+	if (std::abs(delta_wall.count() - delta_uptime_tot.count()) < 2) {
+		/* OK */
+	} else if (std::abs(delta_uptime_tot.count() - delta_uptime_cur.count()) < 1) {
+		/* imprecise wall time recorded, but no rollover has occurred -- OK for now */
+	} else if (delta_wall.count() > uptime.count()) {
+		fmt::print(""
+			   "Rollover: at   {} uptime_cur={} uptime_tot={}\n"
+			   "          prev {} uptime_cur={} uptime_tot={}\n"
+			   "          wall clock delta: {}\n"
+			   "              uptime delta: t. {}{}\n"
+			   "                    uptime: {}\n"
+			,
+			   last.stamp, last.uptime_cur, last.uptime_tot,
+			   prev.stamp, prev.uptime_cur, prev.uptime_tot,
+			   delta_wall,
+			   delta_uptime_bad ? "(invalid) " : "", delta_uptime_tot,
+			   uptime
+		);
+
+		++r.rollovers;
+		if (delta_uptime_bad) {
+			/* total uptime was not properly updated -- assuming a power loss has occurred, use only this measurement */
+			r.total_time += uptime;
+			r.total_energy_j += last.pwr * uptime.count();
+			return;
+		} else {
+			/* total uptime was updated -- use that delta instead of the wall clock delta */
+			delta_wall = delta_uptime_tot;
+		}
+	} else {
+		fmt::print(""
+			   "!!! INCONSISTENT MEASUREMENT !!!"
+			   "          at   {} uptime_cur={} uptime_tot={}\n"
+			   "          prev {} uptime_cur={} uptime_tot={}\n"
+			   "          wall clock delta: {}\n"
+			   "              uptime delta: t. {}{}, cur. {}\n"
+			   "                    uptime: {}\n"
+			,
+			   last.stamp, last.uptime_cur, last.uptime_tot,
+			   prev.stamp, prev.uptime_cur, prev.uptime_tot,
+			   delta_wall,
+			   delta_uptime_bad ? "(invalid) " : "", delta_uptime_tot, delta_uptime_cur,
+			   uptime
+		);
+
+		r.bad = true;
+		return;
+	}
 
 	r.total_time += delta_wall;
 	r.total_energy_j += (prev.pwr + last.pwr) * delta_wall.count() / 2;
@@ -155,5 +213,6 @@ int main(int argc, char **argv)
 		r.total_time
 	);
 	fmt::print("Total energy is {} J\n", r.total_energy_j);
-	return 0;
+	fmt::print("Total rollover events: {}\n", r.rollovers);
+	return r.bad ? 1 : 0;
 }
