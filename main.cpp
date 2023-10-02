@@ -82,6 +82,7 @@ int main(int argc, char **argv)
 		for (auto device: doc["data"].get_array()) {
 			if (device["description"].get_string() == "Corsair HX1000i"sv) {
 				device_items = device["status"].get_array();
+				break;
 			}
 		}
 
