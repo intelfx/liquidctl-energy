@@ -38,7 +38,7 @@ std::chrono::sys_time<std::chrono::nanoseconds> parse_timestamp(std::string_view
 
 	std::chrono::sys_time<std::chrono::nanoseconds> ret;
 	// 2023-05-31T00:13:57,906371842+03:00
-	ss >> date::parse("%FT%T", ret);
+	ss >> date::parse("%FT%T%Ez", ret);
 
 	return ret;
 }
