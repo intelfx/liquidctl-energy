@@ -82,7 +82,9 @@ ts_time parse_timestamp(std::string_view s)
 
 GroupKey GroupKey::from_time(ts_time ts)
 {
-	auto ts_local = ts_zoned{std::chrono::current_zone(), ts}.get_local_time();
+	static auto zone = std::chrono::current_zone();
+
+	auto ts_local = ts_zoned{zone, ts}.get_local_time();
 	auto ymd = std::chrono::year_month_day{ std::chrono::floor<std::chrono::days>(ts_local) };
 	return {(int)ymd.year(), (unsigned)ymd.month()};
 }
