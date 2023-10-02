@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 	double total_energy, prev_pwr;
 	bool is_first = true;
 
-	for (auto doc: input_json) {
+	for (auto doc: input_json) try {
 		auto ts = parse_timestamp(doc["timestamp"].get_string());
 
 		sj::array device_items;
@@ -119,6 +119,8 @@ int main(int argc, char **argv)
 
 		prev_ts = ts;
 		prev_pwr = pwr_input;
+	} catch (const simdjson::simdjson_error &e) {
+		fmt::print(stderr, "Failed to parse ({}):\n{}\n", e.what(), to_json_string(doc).value());
 	}
 
 	/* TODO: fmtlib does not yet support %j for durations
