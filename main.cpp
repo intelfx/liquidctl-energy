@@ -45,6 +45,8 @@ std::chrono::sys_time<std::chrono::nanoseconds> parse_timestamp(std::string_view
 
 int main(int argc, char **argv)
 {
+	std::locale::global(std::locale(""));
+
 	argparse::ArgumentParser args("liquidctl-energy");
 	args.add_argument("input")
 		.action([](const std::string &value) {
