@@ -91,11 +91,19 @@ GroupKey GroupKey::from_time(ts_time ts)
 
 void account_step(Result &r, ts_time ts, fp_seconds time, double energy)
 {
-	auto &bucket = r.buckets[GroupKey::from_time(ts)];
+	static GroupKey last_key{};
+	static GroupResult *last_bucket{};
+
+	auto key = GroupKey::from_time(ts);
+	if (key != last_key) {
+		last_key = key;
+		last_bucket = &r.buckets[key];
+	}
+
 	r.total.time += time;
 	r.total.energy_j += energy;
-	bucket.time += time;
-	bucket.energy_j += energy;
+	last_bucket->time += time;
+	last_bucket->energy_j += energy;
 }
 
 void process_step(Result &r, const Measurement &prev, const Measurement &last)
