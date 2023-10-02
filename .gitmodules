@@ -1,3 +1,6 @@
 [submodule "argparse"]
 	path = argparse
 	url = https://github.com/p-ranav/argparse
+[submodule "date"]
+	path = date
+	url = https://github.com/HowardHinnant/date
