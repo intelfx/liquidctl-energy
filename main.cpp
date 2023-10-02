@@ -10,6 +10,8 @@
 #include <date/date.h>
 #include <simdjson.h>
 
+#include "svstream.hpp"
+
 using std::filesystem::path;
 using namespace std::string_literals;
 using namespace std::string_view_literals;
@@ -69,8 +71,7 @@ double parse_item(sj::object obj, std::string_view unit)
 
 ts_time parse_timestamp(std::string_view s)
 {
-	// TODO: write a custom stringstream
-	std::istringstream ss{std::string{s}};
+	isvstream ss{s};
 	ss.exceptions(std::ios::failbit);
 
 	ts_time ret;

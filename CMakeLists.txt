@@ -9,6 +9,7 @@ add_subdirectory(argparse)
 add_subdirectory(date)
 
 add_executable(liquidctl_energy
+	svstream.hpp
 	main.cpp
 )
 target_link_libraries(liquidctl_energy
