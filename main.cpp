@@ -19,6 +19,19 @@ namespace sj = simdjson::ondemand;
 using ts_time = std::chrono::sys_time<std::chrono::nanoseconds>;
 using fp_seconds = std::chrono::duration<double>;
 
+struct Measurement
+{
+	ts_time stamp;
+	double uptime_cur, uptime_tot;
+	double pwr;
+};
+
+struct Result
+{
+	fp_seconds total_time;
+	double total_energy_j;
+};
+
 double parse_item(sj::object obj, std::string_view unit)
 {
 	if (obj["unit"].get_string() != unit) {
@@ -43,6 +56,14 @@ ts_time parse_timestamp(std::string_view s)
 	ss >> date::parse("%FT%T%Ez", ret);
 
 	return ret;
+}
+
+void process_step(Result &r, const Measurement &prev, const Measurement &last)
+{
+	fp_seconds delta_wall{last.stamp - prev.stamp};
+
+	r.total_time += delta_wall;
+	r.total_energy_j += (prev.pwr + last.pwr) * delta_wall.count() / 2;
 }
 
 int main(int argc, char **argv)
@@ -77,10 +98,9 @@ int main(int argc, char **argv)
 	sj::parser parser;
 	sj::document_stream input_json = parser.iterate_many(input_str);
 
-	ts_time prev_ts;
-	fp_seconds total_time;
-	double total_energy, prev_pwr;
 	bool is_first = true;
+	Measurement prev, m;
+	Result r{};
 
 	for (auto doc: input_json) try {
 		auto ts = parse_timestamp(doc["timestamp"].get_string());
@@ -109,16 +129,20 @@ int main(int argc, char **argv)
 			}
 		}
 
+		m = {
+			.stamp = ts,
+			.uptime_cur = uptime_cur,
+			.uptime_tot = uptime_tot,
+			.pwr = pwr_input,
+		};
+
 		if (is_first) {
 			is_first = false;
 		} else {
-			auto delta = fp_seconds{ts - prev_ts};
-			total_time += delta;
-			total_energy += (prev_pwr + pwr_input) * delta.count() / 2;
+			process_step(r, prev, m);
 		}
 
-		prev_ts = ts;
-		prev_pwr = pwr_input;
+		prev = m;
 	} catch (const simdjson::simdjson_error &e) {
 		fmt::print(stderr, "Failed to parse ({}):\n{}\n", e.what(), to_json_string(doc).value());
 	}
@@ -127,9 +151,9 @@ int main(int argc, char **argv)
 	 *       (https://github.com/fmtlib/fmt/issues/3643) */
 	fmt::print(
 		"Total time is {}d {:%Hh %Mm %Ss}\n",
-		std::chrono::floor<std::chrono::days>(total_time).count(),
-		total_time
+		std::chrono::floor<std::chrono::days>(r.total_time).count(),
+		r.total_time
 	);
-	fmt::print("Total energy is {} J\n", total_energy);
+	fmt::print("Total energy is {} J\n", r.total_energy_j);
 	return 0;
 }
