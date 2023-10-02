@@ -87,16 +87,18 @@ int main(int argc, char **argv)
 		}
 
 		double uptime_cur, uptime_tot, pwr_output, pwr_input;
-		for (auto item: device_items) {
+		for (auto i: device_items) {
+			sj::object item = i.get_object();
+
 			std::string_view key = item["key"].get_string();
 			if (key == "Current uptime") {
-				uptime_cur = parse_item(item.get_object(), "s");
+				uptime_cur = parse_item(item, "s");
 			} else if (key == "Total uptime") {
-				uptime_tot = parse_item(item.get_object(), "s");
+				uptime_tot = parse_item(item, "s");
 			} else if (key == "Total power output") {
-				pwr_output = parse_item(item.get_object(), "W");
+				pwr_output = parse_item(item, "W");
 			} else if (key == "Estimated input power") {
-				pwr_input = parse_item(item.get_object(), "W");
+				pwr_input = parse_item(item, "W");
 			}
 		}
 	}
