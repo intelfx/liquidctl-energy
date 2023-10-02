@@ -3,6 +3,7 @@ project(liquidctl_energy)
 
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(simdjson REQUIRED)
 add_subdirectory(argparse)
 add_subdirectory(date)
 
@@ -11,5 +12,6 @@ add_executable(liquidctl_energy
 )
 target_link_libraries(liquidctl_energy
 	argparse::argparse
+	simdjson::simdjson
 	date::date
 )
