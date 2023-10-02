@@ -17,6 +17,7 @@ using simdjson::padded_string;
 namespace sj = simdjson::ondemand;
 
 using ts_time = std::chrono::sys_time<std::chrono::nanoseconds>;
+using fp_seconds = std::chrono::duration<double>;
 
 double parse_item(sj::object obj, std::string_view unit)
 {
@@ -76,6 +77,11 @@ int main(int argc, char **argv)
 	sj::parser parser;
 	sj::document_stream input_json = parser.iterate_many(input_str);
 
+	ts_time prev_ts;
+	fp_seconds total_time;
+	double total_energy, prev_pwr;
+	bool is_first = true;
+
 	for (auto doc: input_json) {
 		auto ts = parse_timestamp(doc["timestamp"].get_string());
 
@@ -102,7 +108,26 @@ int main(int argc, char **argv)
 				pwr_input = parse_item(item, "W");
 			}
 		}
+
+		if (is_first) {
+			is_first = false;
+		} else {
+			auto delta = fp_seconds{ts - prev_ts};
+			total_time += delta;
+			total_energy += (prev_pwr + pwr_input) * delta.count() / 2;
+		}
+
+		prev_ts = ts;
+		prev_pwr = pwr_input;
 	}
 
+	/* TODO: fmtlib does not yet support %j for durations
+	 *       (https://github.com/fmtlib/fmt/issues/3643) */
+	fmt::print(
+		"Total time is {}d {:%Hh %Mm %Ss}\n",
+		std::chrono::floor<std::chrono::days>(total_time).count(),
+		total_time
+	);
+	fmt::print("Total energy is {} J\n", total_energy);
 	return 0;
 }
