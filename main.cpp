@@ -32,6 +32,8 @@ struct Result
 	double total_energy_j;
 	unsigned rollovers;
 	bool bad;
+
+	double total_energy_kwh() const { return total_energy_j / 3600 / 1000; }
 };
 
 double parse_item(sj::object obj, std::string_view unit)
@@ -213,6 +215,7 @@ int main(int argc, char **argv)
 		r.total_time
 	);
 	fmt::print("Total energy is {} J\n", r.total_energy_j);
+	fmt::print("         ... or {} kWh\n", r.total_energy_kwh());
 	fmt::print("Total rollover events: {}\n", r.rollovers);
 	return r.bad ? 1 : 0;
 }
