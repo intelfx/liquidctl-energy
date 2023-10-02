@@ -28,6 +28,8 @@ struct Measurement
 
 struct Result
 {
+	static const constexpr double COST_KWH = 7.79;
+
 	fp_seconds total_time;
 	double total_energy_j;
 	unsigned rollovers;
@@ -216,6 +218,7 @@ int main(int argc, char **argv)
 	);
 	fmt::print("Total energy is {} J\n", r.total_energy_j);
 	fmt::print("         ... or {} kWh\n", r.total_energy_kwh());
+	fmt::print("         ... or {} ₽\n", r.total_energy_kwh() * r.COST_KWH);
 	fmt::print("Total rollover events: {}\n", r.rollovers);
 	return r.bad ? 1 : 0;
 }
