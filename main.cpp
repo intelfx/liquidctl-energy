@@ -249,33 +249,34 @@ int main(int argc, char **argv)
 		fmt::print(stderr, "Failed to parse ({}):\n{}\n", e.what(), to_json_string(doc).value());
 	}
 
-	fmt::print("\n");
+	fmt::print("Total rollover events: {}\n\n", r.rollovers);
+	fmt::print("-----------------------------------\n");
 
 	for (const auto &i: r.buckets) {
 		/* TODO: fmtlib does not yet support %j for durations
 		 *       (https://github.com/fmtlib/fmt/issues/3643) */
 		fmt::print(
-			"{:04d}-{:02d} time is {}d {:%Hh %Mm %Ss}\n",
+			"{:04d}-{:02d} uptime is {:2}d {:.1%Hh %Mm %Ss}\n",
 			std::get<0>(i.first),
 			std::get<1>(i.first),
 			std::chrono::floor<std::chrono::days>(i.second.time).count(),
 			i.second.time
 		);
-		fmt::print("      energy is {} J\n", i.second.energy_j);
-		fmt::print("         ... or {} kWh\n", i.second.energy_kwh());
-		fmt::print("         ... or {} ₽\n", i.second.energy_kwh() * i.second.COST_KWH);
+		fmt::print("        energy is {:>6.2f} kWh\n", i.second.energy_kwh());
+		fmt::print("           ... or {:>6.2f} ₽\n", i.second.energy_kwh() * i.second.COST_KWH);
 	}
+
+	fmt::print("----------------------------------\n");
 
 	/* TODO: fmtlib does not yet support %j for durations
 	 *       (https://github.com/fmtlib/fmt/issues/3643) */
 	fmt::print(
-		"Total time   is {}d {:%Hh %Mm %Ss}\n",
+		"Total uptime is {:3}d {:.1%Hh %Mm %Ss}\n",
 		std::chrono::floor<std::chrono::days>(r.total.time).count(),
 		r.total.time
 	);
-	fmt::print("Total energy is {} J\n", r.total.energy_j);
-	fmt::print("         ... or {} kWh\n", r.total.energy_kwh());
-	fmt::print("         ... or {} ₽\n", r.total.energy_kwh() * r.total.COST_KWH);
-	fmt::print("Total rollover events: {}\n", r.rollovers);
+	fmt::print("Total energy is {:>8.2f} kWh\n", r.total.energy_kwh());
+	fmt::print("         ... or {:>8.2f} ₽\n", r.total.energy_kwh() * r.total.COST_KWH);
+
 	return r.bad ? 1 : 0;
 }
