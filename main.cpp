@@ -1,6 +1,7 @@
 #include <iostream>
 #include <filesystem>
 #include <chrono>
+#include <map>
 
 #include <fmt/format.h>
 #include <fmt/std.h>
@@ -17,6 +18,7 @@ using simdjson::padded_string;
 namespace sj = simdjson::ondemand;
 
 using ts_time = std::chrono::sys_time<std::chrono::nanoseconds>;
+using ts_zoned = std::chrono::zoned_time<std::chrono::nanoseconds>;
 using fp_seconds = std::chrono::duration<double>;
 
 struct Measurement
@@ -26,16 +28,30 @@ struct Measurement
 	double pwr;
 };
 
-struct Result
+struct GroupKey : public std::tuple<int, int>
+{
+public:
+	GroupKey(auto &&... ts)
+		: std::tuple<int, int>(std::forward<decltype(ts)>(ts)...)
+	{ }
+
+	static GroupKey from_time(ts_time ts);
+};
+
+struct GroupResult
 {
 	static const constexpr double COST_KWH = 7.79;
+	fp_seconds time;
+	double energy_j;
+	double energy_kwh() const { return energy_j / 3600 / 1000; }
+};
 
-	fp_seconds total_time;
-	double total_energy_j;
+struct Result
+{
+	GroupResult total;
+	std::map<GroupKey, GroupResult> buckets;
 	unsigned rollovers;
 	bool bad;
-
-	double total_energy_kwh() const { return total_energy_j / 3600 / 1000; }
 };
 
 double parse_item(sj::object obj, std::string_view unit)
@@ -62,6 +78,22 @@ ts_time parse_timestamp(std::string_view s)
 	ss >> date::parse("%FT%T%Ez", ret);
 
 	return ret;
+}
+
+GroupKey GroupKey::from_time(ts_time ts)
+{
+	auto ts_local = ts_zoned{std::chrono::current_zone(), ts}.get_local_time();
+	auto ymd = std::chrono::year_month_day{ std::chrono::floor<std::chrono::days>(ts_local) };
+	return {(int)ymd.year(), (unsigned)ymd.month()};
+}
+
+void account_step(Result &r, ts_time ts, fp_seconds time, double energy)
+{
+	auto &bucket = r.buckets[GroupKey::from_time(ts)];
+	r.total.time += time;
+	r.total.energy_j += energy;
+	bucket.time += time;
+	bucket.energy_j += energy;
 }
 
 void process_step(Result &r, const Measurement &prev, const Measurement &last)
@@ -97,8 +129,7 @@ void process_step(Result &r, const Measurement &prev, const Measurement &last)
 		++r.rollovers;
 		if (delta_uptime_bad) {
 			/* total uptime was not properly updated -- assuming a power loss has occurred, use only this measurement */
-			r.total_time += uptime;
-			r.total_energy_j += last.pwr * uptime.count();
+			account_step(r, last.stamp, uptime, last.pwr * uptime.count());
 			return;
 		} else {
 			/* total uptime was updated -- use that delta instead of the wall clock delta */
@@ -124,8 +155,7 @@ void process_step(Result &r, const Measurement &prev, const Measurement &last)
 		return;
 	}
 
-	r.total_time += delta_wall;
-	r.total_energy_j += (prev.pwr + last.pwr) * delta_wall.count() / 2;
+	account_step(r, prev.stamp, delta_wall, (prev.pwr + last.pwr) * delta_wall.count() / 2);
 }
 
 int main(int argc, char **argv)
@@ -209,16 +239,33 @@ int main(int argc, char **argv)
 		fmt::print(stderr, "Failed to parse ({}):\n{}\n", e.what(), to_json_string(doc).value());
 	}
 
+	fmt::print("\n");
+
+	for (const auto &i: r.buckets) {
+		/* TODO: fmtlib does not yet support %j for durations
+		 *       (https://github.com/fmtlib/fmt/issues/3643) */
+		fmt::print(
+			"{:04d}-{:02d} time is {}d {:%Hh %Mm %Ss}\n",
+			std::get<0>(i.first),
+			std::get<1>(i.first),
+			std::chrono::floor<std::chrono::days>(i.second.time).count(),
+			i.second.time
+		);
+		fmt::print("      energy is {} J\n", i.second.energy_j);
+		fmt::print("         ... or {} kWh\n", i.second.energy_kwh());
+		fmt::print("         ... or {} ₽\n", i.second.energy_kwh() * i.second.COST_KWH);
+	}
+
 	/* TODO: fmtlib does not yet support %j for durations
 	 *       (https://github.com/fmtlib/fmt/issues/3643) */
 	fmt::print(
-		"Total time is {}d {:%Hh %Mm %Ss}\n",
-		std::chrono::floor<std::chrono::days>(r.total_time).count(),
-		r.total_time
+		"Total time   is {}d {:%Hh %Mm %Ss}\n",
+		std::chrono::floor<std::chrono::days>(r.total.time).count(),
+		r.total.time
 	);
-	fmt::print("Total energy is {} J\n", r.total_energy_j);
-	fmt::print("         ... or {} kWh\n", r.total_energy_kwh());
-	fmt::print("         ... or {} ₽\n", r.total_energy_kwh() * r.COST_KWH);
+	fmt::print("Total energy is {} J\n", r.total.energy_j);
+	fmt::print("         ... or {} kWh\n", r.total.energy_kwh());
+	fmt::print("         ... or {} ₽\n", r.total.energy_kwh() * r.total.COST_KWH);
 	fmt::print("Total rollover events: {}\n", r.rollovers);
 	return r.bad ? 1 : 0;
 }
