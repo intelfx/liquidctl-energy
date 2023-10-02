@@ -16,6 +16,7 @@ using namespace std::string_view_literals;
 using simdjson::padded_string;
 namespace sj = simdjson::ondemand;
 
+using ts_time = std::chrono::sys_time<std::chrono::nanoseconds>;
 
 double parse_item(sj::object obj, std::string_view unit)
 {
@@ -30,13 +31,13 @@ double parse_item(sj::object obj, std::string_view unit)
 	return obj["value"].get_double();
 }
 
-std::chrono::sys_time<std::chrono::nanoseconds> parse_timestamp(std::string_view s)
+ts_time parse_timestamp(std::string_view s)
 {
 	// TODO: write a custom stringstream
 	std::istringstream ss{std::string{s}};
 	ss.exceptions(std::ios::failbit);
 
-	std::chrono::sys_time<std::chrono::nanoseconds> ret;
+	ts_time ret;
 	// 2023-05-31T00:13:57,906371842+03:00
 	ss >> date::parse("%FT%T%Ez", ret);
 
