@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 		auto ts = parse_timestamp(doc["timestamp"].get_string());
 
 		sj::array device_items;
-		for (auto device: doc["data"].get_array()) {
+		for (sj::object device: doc["data"].get_array()) {
 			if (device["description"].get_string() == "Corsair HX1000i"sv) {
 				device_items = device["status"].get_array();
 				break;
@@ -217,8 +217,7 @@ int main(int argc, char **argv)
 		}
 
 		double uptime_cur, uptime_tot, pwr_input;
-		for (auto i: device_items) {
-			sj::object item = i.get_object();
+		for (sj::object item: device_items) {
 
 			std::string_view key = item["key"].get_string();
 			if (key == "Current uptime") {
