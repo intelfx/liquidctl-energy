@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		double uptime_cur, uptime_tot, pwr_output, pwr_input;
+		double uptime_cur, uptime_tot, pwr_input;
 		for (auto i: device_items) {
 			sj::object item = i.get_object();
 
@@ -225,8 +225,6 @@ int main(int argc, char **argv)
 				uptime_cur = parse_item(item, "s");
 			} else if (key == "Total uptime") {
 				uptime_tot = parse_item(item, "s");
-			} else if (key == "Total power output") {
-				pwr_output = parse_item(item, "W");
 			} else if (key == "Estimated input power") {
 				pwr_input = parse_item(item, "W");
 			}
