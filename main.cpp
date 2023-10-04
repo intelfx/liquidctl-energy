@@ -58,7 +58,8 @@ struct Result
 
 double parse_item(sj::object obj, std::string_view unit)
 {
-	if (obj["unit"].get_string() != unit) {
+	auto value = obj.find_field("value").get_double().value();
+	if (obj.find_field("unit").get_string() != unit) {
 		throw std::runtime_error(
 			fmt::format(
 				"Bad item: {}, expected unit: \"{}\"",
@@ -66,7 +67,7 @@ double parse_item(sj::object obj, std::string_view unit)
 				unit
 			));
 	}
-	return obj["value"].get_double();
+	return value;
 }
 
 ts_time parse_timestamp(std::string_view s)
@@ -206,20 +207,19 @@ int main(int argc, char **argv)
 	Result r{};
 
 	for (sj::document_reference doc: input_json) try {
-		auto ts = parse_timestamp(doc["timestamp"].get_string());
+		auto ts = parse_timestamp(doc.find_field("timestamp").get_string());
 
 		sj::array device_items;
-		for (sj::object device: doc["data"].get_array()) {
-			if (device["description"].get_string() == "Corsair HX1000i"sv) {
-				device_items = device["status"].get_array();
+		for (sj::object device: doc.find_field("data").get_array()) {
+			if (device.find_field("description").get_string() == "Corsair HX1000i"sv) {
+				device_items = device.find_field("status").get_array();
 				break;
 			}
 		}
 
 		double uptime_cur, uptime_tot, pwr_input;
 		for (sj::object item: device_items) {
-
-			std::string_view key = item["key"].get_string();
+			std::string_view key = item.find_field("key").get_string();
 			if (key == "Current uptime") {
 				uptime_cur = parse_item(item, "s");
 			} else if (key == "Total uptime") {
