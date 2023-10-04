@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 	Measurement prev, m;
 	Result r{};
 
-	for (auto doc: input_json) try {
+	for (sj::document_reference doc: input_json) try {
 		auto ts = parse_timestamp(doc["timestamp"].get_string());
 
 		sj::array device_items;
@@ -244,7 +244,7 @@ int main(int argc, char **argv)
 
 		prev = m;
 	} catch (const simdjson::simdjson_error &e) {
-		fmt::print(stderr, "Failed to parse ({}):\n{}\n", e.what(), to_json_string(doc).value());
+		fmt::print(stderr, "Failed to parse ({}):\n{}\n", e.what(), doc.raw_json().value());
 	}
 
 	fmt::print("Total rollover events: {}\n\n", r.rollovers);
